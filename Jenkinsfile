@@ -11,7 +11,7 @@ pipeline
         PROJECT = 'dev-pro'
         IMAGE = "$PROJECT:$VERSION"
         ECRURL = 'http://021344489861.dkr.ecr.us-west-2.amazonaws.com'
-        ECRCRED = 'AWS:dev-pro-ecr:tap_ecr'
+        ECRCRED = 'ecr:us-west-2:dev-pro-ecr'
     }
     stages
     {
