@@ -17,7 +17,14 @@ pipeline
     stages
     {
         stage("Checkout") {
-            checkout scm
+            steps
+            {
+                script
+                {
+                    checkout scm
+                }
+
+            }
         }
 
         stage('Build preparations')
@@ -70,35 +77,37 @@ pipeline
         */
         stage("Deploy") 
         {
-        // Replace BUILD_TAG placeholder in the task-definition file -
-        // with the IMAGE (imageTag-BUILD_NUMBER)
-        sh  "                                                                     \
-          sed -e  's;%BUILD_TAG%;${IMAGE};g'                             \
-                  aws/task-definition.json >                                      \
-                  aws/task-definition-${IMAGE}.json                      \
-        "
+            steps
+            {
+            // Replace BUILD_TAG placeholder in the task-definition file -
+            // with the IMAGE (imageTag-BUILD_NUMBER)
+            sh  "                                                                     \
+            sed -e  's;%BUILD_TAG%;${IMAGE};g'                             \
+                aws/task-definition.json >                                      \
+                aws/task-definition-${IMAGE}.json                      \
+            "
 
         // Get current [TaskDefinition#revision-number]
-        def currTaskDef = sh (
-          returnStdout: true,
-          script:  "                                                              \
-            aws ecs describe-task-definition  --task-definition ${taskFamily}     \
-                                              | egrep 'revision'                  \
-                                              | tr ',' ' '                        \
-                                              | awk '{print \$2}'                 \
-          "
-        ).trim()
+            def currTaskDef = sh (
+                returnStdout: true,
+                script:  "                                                              \
+                    aws ecs describe-task-definition  --task-definition ${taskFamily}     \
+                                                      | egrep 'revision'                  \
+                                                      | tr ',' ' '                        \
+                                                      | awk '{print \$2}'                 \
+                    "
+            ).trim()
 
-        def currentTask = sh (
-          returnStdout: true,
-          script:  "                                                              \
-            aws ecs list-tasks  --cluster ${clusterName}                          \
-                                --family ${taskFamily}                            \
-                                --output text                                     \
-                                | egrep 'TASKARNS'                                \
-                                | awk '{print \$2}'                               \
-          "
-        ).trim()
+            def currentTask = sh (
+                returnStdout: true,
+                script:  "                                                              \
+                    aws ecs list-tasks  --cluster ${clusterName}                          \
+                                        --family ${taskFamily}                            \
+                                        --output text                                     \
+                                        | egrep 'TASKARNS'                                \
+                                        | awk '{print \$2}'                               \
+                    "
+            ).trim()
 
         /*
         / Scale down the service
@@ -112,44 +121,45 @@ pipeline
         /   and it is very likely that starting task will run before the scaling down service finish
         /   so.. we need to manually stop the task via aws ecs stop-task.
         */
-        if(currTaskDef) {
-          sh  "                                                                   \
-            aws ecs update-service  --cluster ${clusterName}                      \
-                                    --service ${serviceName}                      \
-                                    --task-definition ${taskFamily}:${currTaskDef}\
-                                    --desired-count 0                             \
-          "
-        }
-        if (currentTask) {
-          sh "aws ecs stop-task --cluster ${clusterName} --task ${currentTask}"
-        }
+            if(currTaskDef) {
+                sh  "                                                                   \
+                    aws ecs update-service  --cluster ${clusterName}                      \
+                                            --service ${serviceName}                      \
+                                            --task-definition ${taskFamily}:${currTaskDef}\
+                                            --desired-count 0                             \
+                    "
+            }
+            if (currentTask) {
+                sh "aws ecs stop-task --cluster ${clusterName} --task ${currentTask}"
+            }   
 
         // Register the new [TaskDefinition]
-        sh  "                                                                     \
-          aws ecs register-task-definition  --family ${taskFamily}                \
-                                            --cli-input-json ${TASKDEF}        \
-        "
+            sh  "                                                                     \
+                aws ecs register-task-definition    --family ${taskFamily}             \
+                                                    --cli-input-json ${TASKDEF}        \
+            "
 
         // Get the last registered [TaskDefinition#revision]
-        def taskRevision = sh (
-          returnStdout: true,
-          script:  "                                                              \
-            aws ecs describe-task-definition  --task-definition ${taskFamily}     \
-                                              | egrep 'revision'                  \
-                                              | tr ',' ' '                        \
-                                              | awk '{print \$2}'                 \
-          "
-        ).trim()
+            def taskRevision = sh (
+                returnStdout: true,
+                script:  "                                                              \
+                aws ecs describe-task-definition    --task-definition ${taskFamily}     \
+                                                    | egrep 'revision'                  \
+                                                    | tr ',' ' '                        \
+                                                    | awk '{print \$2}'                 \
+                "
+            ).trim()
 
         // ECS update service to use the newly registered [TaskDefinition#revision]
         //
-        sh  "                                                                     \
-          aws ecs update-service  --cluster ${clusterName}                        \
-                                  --service ${serviceName}                        \
-                                  --task-definition ${taskFamily}:${taskRevision} \
-                                  --desired-count 1                               \
-        "
-      }
+            sh  "                                                                     \
+                aws ecs update-service  --cluster ${clusterName}                        \
+                                        --service ${serviceName}                        \
+                                        --task-definition ${taskFamily}:${taskRevision} \
+                                        --desired-count 1                               \
+                "
+            }
+        }
     }
     
     post
