@@ -1,0 +1,24 @@
+{
+    "family": "frontend",
+    "containerDefinitions": [
+        {
+            "image": "021344489861.dkr.ecr.us-west-2.amazonaws.com/dev-pro:%BUILD_TAG%",
+            "name": "frontend",
+            "essential": true,
+            "cpu": 100,
+            "memoryReservation": 300,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp"
+                },
+                {
+                    "containerPort": 443,
+                    "hostPort": 443,
+                    "protocol": "tcp"
+                }
+            ]
+        }
+    ]
+}
